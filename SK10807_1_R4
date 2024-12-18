@@ -343,7 +343,7 @@ void init_stepper_drive(void) {
 	myStepperDrive.setMaxSpeed((float)tmp);										// max speed is in steps per sec... so this can also be looked at as revs/sec 1600 steps/sec = (1600 steps/sec divided by STEPS_PER_REV) = 8 revs/sec (with STEPS_PER_REV = 200)
 	
 	tmp = myDriveSettings.acceleration;									// calculate the acceleration in terms of steps per sec...
-	myStepperDrive.setSpeedSteps((float)tmp);									// acceleration is also in steps per sec, so if your max speed is 1600 and your acceleration is 800, then it will take 2 secs to get up to full speed
+	myStepperDrive.setRampLen((float)tmp);									// acceleration is also in steps per sec, so if your max speed is 1600 and your acceleration is 800, then it will take 2 secs to get up to full speed
 	//myStepperDrive.setCurrentPosition(0);									// sets the current position to 0
 
 }
@@ -1168,7 +1168,7 @@ void disableMotor() {
 
 void setMotorAcceleration() {
 	myDriveSettings.acceleration = inStr.substring(4).toDouble();
-	myStepperDrive.setSpeedSteps((float)myDriveSettings.acceleration*10);
+	myStepperDrive.setRampLen((float)myDriveSettings.acceleration);
 	Serial.print("Accel set to "); Serial.println(myDriveSettings.acceleration);
 }
 
