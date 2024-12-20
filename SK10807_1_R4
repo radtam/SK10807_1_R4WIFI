@@ -33,9 +33,10 @@
 #define DIR_PIN		D12			// Direction pin
 #define EN_PIN		D13			// Enable pin (not used currently but is wired)
 
-#define STEPS_PER_REV_DEF	50		// this value needs to correspond to the  switch setting on the DM1182 myStepperDrive drive 
+#define DRIVER_RESOLUTION_DEF 200		// steps per revolutions this value needs to correspond to the  switch setting on the DM1182 myStepperDrive drive 12/20
 #define MAX_SPEED_DEF		8		// revolutions per second
-#define ACCELERATION_DEF	1600	// steps per sec
+#define ACCELERATION_DEF	1600	// steps per sec^2
+#define POSITION_RESOLUTION_DEF 50  // 
 
 #define DIR_UP				-1		// "UP" movements are CCW shaft rotations or negative step values
 #define DIR_DOWN			1		// "DOWN" movements are CW shaft rotations or positive step values
@@ -56,7 +57,7 @@ const char display4[] = "Limit Sensor Cfg";
 const char display5[] = "Motor Control   ";
 const char display6[] = "Max Speed: 12rps";
 const char display7[] = "Accel:6789stps/s";
-const char display8[] = "Steps/Rev: 12345";
+const char display8[] = "DriverRes: 12345";
 const char display9[] = "Duty Cycle: 234%";
 //						         "0123456789012345"
 const char display10[] = "Lmt Sensors YES ";
@@ -112,7 +113,7 @@ const char* const myDISPLAY[] = { display0, display1, display2, display3, displa
 #define INDEX_MOTOR_CONTROL	5
 #define INDEX_MAX_SPEED		6
 #define INDEX_ACCEL			7
-#define INDEX_STEPS_PER_REV	8
+#define INDEX_DRIVER_RESOLUTION	8
 //#define INDEX_DUTY_CYCLE	9
 #define INDEX_USE_LMT_SENSORS	10
 #define INDEX_INV_UP		11
@@ -223,7 +224,7 @@ struct theLCD myLCD;
 struct myStepperDriveSettings {
 	uint32_t max_speed;		// this is the revolutions per sec (derived from RPM) - this will be used to set the max speed in terms of steps per sec
 	uint32_t acceleration;		// this will be used to set the acceleration of the drive in terms of steps per sec
-	uint32_t steps_per_rev;		// this is the number of steps per rev that the drive is set to
+  uint32_t driver_resolution; // This is the driver's resolution (pulses per revolution) 12/20
 	int32_t top_position;		// currently, the top position is always defined as being 0... but this could change in the future if we need to...
 	int32_t bot_position;		// this will store the bottom position step count for the cycle test.
 	uint8_t chksum;				// checksum for the stored data - this will be used to validate the data that we read.
@@ -254,7 +255,7 @@ LiquidCrystal lcd(8, 9, 4, 5, 6, 7);
 
 // Define a myStepperDrive and the pins it will use - using the DRIVER profile - a 2 wire interface
 //AccelStepper myStepperDrive(1, STEP_PIN, DIR_PIN);
-MoToStepper myStepperDrive(myDriveSettings.steps_per_rev,STEPDIR);
+MoToStepper myStepperDrive(myDriveSettings.driver_resolution,STEPDIR);
 
 uint32_t Time100ms;
 uint32_t Time1000ms;
@@ -327,9 +328,9 @@ void init_drive_settings(void) {
 	if (myDriveSettings.chksum != EE_CHKSUM_VALID) {
 		myDriveSettings.acceleration = ACCELERATION_DEF;
 		myDriveSettings.max_speed = MAX_SPEED_DEF;
-		myDriveSettings.steps_per_rev = STEPS_PER_REV_DEF;
+		myDriveSettings.driver_resolution = DRIVER_RESOLUTION_DEF;
 		myDriveSettings.top_position = 0;
-		myDriveSettings.bot_position = STEPS_PER_REV_DEF * 5;	
+		myDriveSettings.bot_position = POSITION_RESOLUTION_DEF * 5;	
 		myDriveSettings.chksum = EE_CHKSUM_VALID;	
 	}	
 }
@@ -339,7 +340,7 @@ void init_stepper_drive(void) {
 
 	//myStepperDrive.setPinsInverted(false);									// Invert the default direction - this was in the code previously - don't think it is needed...
 	
-	tmp = myDriveSettings.max_speed * myDriveSettings.steps_per_rev;		// calculate the max speed...
+	tmp = myDriveSettings.max_speed * myDriveSettings.driver_resolution;		// calculate the max speed...
 	myStepperDrive.setMaxSpeed((float)tmp);										// max speed is in steps per sec... so this can also be looked at as revs/sec 1600 steps/sec = (1600 steps/sec divided by STEPS_PER_REV) = 8 revs/sec (with STEPS_PER_REV = 200)
 	
 	tmp = myDriveSettings.acceleration;									// calculate the acceleration in terms of steps per sec...
@@ -389,7 +390,7 @@ void saveStepperDriveSettings(void) {
 void bump(int dir) {
 	// dir will be -1 for UP and 1 for DOWN movement...
 	// relative movement... 1 rotation is a "bump"
-	myStepperDrive.move((dir * (int16_t)myDriveSettings.steps_per_rev));
+	myStepperDrive.move((dir * (int16_t)myDriveSettings.driver_resolution)); //12/20
 }
 
 void moveTo(int32_t position) {
@@ -541,13 +542,20 @@ void updateEditVariables(void) {
 			myEdit.xMultipler = 5;
 			myEdit.cur_Value = myDriveSettings.acceleration;
 			break;
-		case INDEX_STEPS_PER_REV:
-			myEdit.max_Value = 40000;
-			myEdit.min_Value = STEPS_PER_REV_DEF;
-			myEdit.stepSize = STEPS_PER_REV_DEF;
+		case INDEX_DRIVER_RESOLUTION:
+			myEdit.max_Value = 6400;
+			myEdit.min_Value = DRIVER_RESOLUTION_DEF;
+			myEdit.stepSize = myDriveSettings.driver_resolution;
 			myEdit.xMultipler = 1;
-			myEdit.cur_Value = myDriveSettings.steps_per_rev;
+			myEdit.cur_Value = myDriveSettings.driver_resolution;
 			break;
+    //case INDEX_DRIVER_RESOLUTION:   \\12/20
+    //  myEdit.max_Value = 4000; 
+    //  myEdit.min_Value = DRIVER_RESOLUTION_DEF; 
+    //  myEdit.stepSize = myDriveSettings.driver_resolution; 
+    //  myEdit.xMultipler = 1; 
+    //  myEdit.cur_Value = myDriveSettings.driver_resolution; 
+    //  break;
 		case INDEX_USE_LMT_SENSORS:
 			myEdit.max_Value = 1;
 			myEdit.min_Value = 0;
@@ -614,11 +622,11 @@ void saveEdit(void) {
 			saveStepperDriveSettings();
 			end_edit = true;
 			break;
-		case INDEX_STEPS_PER_REV:
-			myDriveSettings.steps_per_rev = myEdit.cur_Value;
-			saveStepperDriveSettings();
-			end_edit = true;
-			break;
+    case INDEX_DRIVER_RESOLUTION:
+      myDriveSettings.driver_resolution = myEdit.cur_Value;
+      saveStepperDriveSettings();
+      end_edit = true;
+      break;
 		case INDEX_USE_LMT_SENSORS:
 			myCycleTest.limit_sensors = (myEdit.cur_Value == 1);
 			saveCycleData();
@@ -750,7 +758,7 @@ void edit_menu() {
 			xMultipler = myEdit.xMultipler;
 		case btnUP:
 			switch (menuLCD[myLCD.top_menu_index][myLCD.sub_menu_index]) {		// look for special cases...
-				case INDEX_STEPS_PER_REV:
+				case INDEX_DRIVER_RESOLUTION:
 					myEdit.cur_Value = myEdit.cur_Value * 2;
 					break;
 				case INDEX_USE_LMT_SENSORS:
@@ -770,7 +778,7 @@ void edit_menu() {
 			xMultipler = myEdit.xMultipler;
 		case btnDOWN:
 			switch (menuLCD[myLCD.top_menu_index][myLCD.sub_menu_index]) {
-				case INDEX_STEPS_PER_REV:
+				case INDEX_DRIVER_RESOLUTION:
 					myEdit.cur_Value = myEdit.cur_Value / 2;
 					break;
 				case INDEX_USE_LMT_SENSORS:
@@ -961,8 +969,8 @@ void updateDisp_SetupEdits(uint16_t theData) {
 			lcd.setCursor(6,1); lcd.print("    ");
 			lcd.setCursor(6,1); lcd.print(theData);
 			break;
-		case INDEX_STEPS_PER_REV:
-			if (theData == INVALID_DATA) theData = myDriveSettings.steps_per_rev;
+		case INDEX_DRIVER_RESOLUTION:
+			if (theData == INVALID_DATA) theData = myDriveSettings.driver_resolution;
 			lcd.setCursor(11,1); lcd.print("     ");
 			lcd.setCursor(11,1); lcd.print(theData);
 			break;
