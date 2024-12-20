@@ -94,7 +94,7 @@ const char display38[] = "Edit Parameter  ";
 const char display39[] = "Move to ?       ";
 const char display40[] = "Mtr Ctrl Active ";
 //						         "0123456789012345"
-const char display41[] = "Rev/Sec: 90     ";
+const char display41[] = "MoveRes:123 stps";
 
 
 const char* const myDISPLAY[] = { display0, display1, display2, display3, display4, display5,
@@ -146,12 +146,12 @@ const char* const myDISPLAY[] = { display0, display1, display2, display3, displa
 #define INDEX_EDIT_PARA		38
 #define INDEX_MOVE_TO_POS	39
 #define INDEX_MOTOR_ACTIVE	40
-#define INDEX_SET_POSITION	41
+#define INDEX_POSITION_RESOLUTION	41
 
 #define MAX_MAIN_MENU		5
 #define MAX_SUB_MENU		5
 												//MAIN MENU    STPR MENUs   CYCLE MENUs     MTR CTRL MENUs    Limit MENUs     
-uint8_t menuLCD[MAX_MAIN_MENU][MAX_SUB_MENU] = { {1,2,3,5,0}, {6,7,8,0,0}, {13,15,29,34,0}, {27,28,39,16,0}, {10,11,12,0,0} };
+uint8_t menuLCD[MAX_MAIN_MENU][MAX_SUB_MENU] = { {1,2,3,5,0}, {6,7,8,0,0}, {13,15,41,0,0}, {27,28,39,16,0}, {10,11,12,0,0} };
 
 #define BUFFER_SIZE		20
 char dispBuffer[BUFFER_SIZE];		// dispBuffer will be used to pull the strings out of program memory and placed in RAM...
@@ -199,6 +199,7 @@ struct CycleTester {
 	uint16_t cycle_count;			// the number of cycles completed (1 cycle = 1 up and 1 down movement)
 	uint16_t dwell_time;			// the amount of time (sec) to wait between movements
 	uint16_t num_cycles;			// the number of cycles for this test period
+  uint16_t position_resolution; // this is the number of steps the motor will move with each botton press
 	uint32_t total_test_time;		// the amount of time (secs) the cycle test has been running
 	uint16_t move_time;				// variable to keep track of the amount of time (sec) when moving from limit to limit.
 	uint16_t move_timeout;			// movement timeout in secs - only used when sensors is enabled
@@ -363,6 +364,7 @@ void init_myCycleTest(void) {
 		myCycleTest.cycle_count = 0;
 		myCycleTest.num_cycles = 4000;
 		myCycleTest.dwell_time = 10;
+    myCycleTest.position_resolution = 50;
 		myCycleTest.total_test_time = 0;
 		myCycleTest.move_time = 0;
 		myCycleTest.duty_cycle = 50;
@@ -390,7 +392,7 @@ void saveStepperDriveSettings(void) {
 void bump(int dir) {
 	// dir will be -1 for UP and 1 for DOWN movement...
 	// relative movement... 1 rotation is a "bump"
-	myStepperDrive.move((dir * (int16_t)myDriveSettings.driver_resolution)); //12/20
+	myStepperDrive.move((dir * (int16_t)myCycleTest.position_resolution)); //12/20
 }
 
 void moveTo(int32_t position) {
@@ -514,6 +516,13 @@ void updateEditVariables(void) {
 			myEdit.xMultipler = 10;
 			myEdit.cur_Value = myCycleTest.dwell_time;
 			break;
+    case INDEX_POSITION_RESOLUTION:
+			myEdit.max_Value = 1600;
+			myEdit.min_Value = 50;
+			myEdit.stepSize = 50;
+			myEdit.xMultipler = 2;
+			myEdit.cur_Value = myCycleTest.position_resolution;
+			break;
 		case INDEX_MOVE_TIMEOUT:
 			myEdit.max_Value = 900;
 			myEdit.min_Value = 10;
@@ -548,14 +557,7 @@ void updateEditVariables(void) {
 			myEdit.stepSize = myDriveSettings.driver_resolution;
 			myEdit.xMultipler = 1;
 			myEdit.cur_Value = myDriveSettings.driver_resolution;
-			break;
-    //case INDEX_DRIVER_RESOLUTION:   \\12/20
-    //  myEdit.max_Value = 4000; 
-    //  myEdit.min_Value = DRIVER_RESOLUTION_DEF; 
-    //  myEdit.stepSize = myDriveSettings.driver_resolution; 
-    //  myEdit.xMultipler = 1; 
-    //  myEdit.cur_Value = myDriveSettings.driver_resolution; 
-    //  break;
+      break;
 		case INDEX_USE_LMT_SENSORS:
 			myEdit.max_Value = 1;
 			myEdit.min_Value = 0;
@@ -600,6 +602,11 @@ void saveEdit(void) {
 		case INDEX_DWELL_TIME:
 			myCycleTest.dwell_time = myEdit.cur_Value;
 			saveCycleData();
+			end_edit = true;
+			break;
+    case INDEX_POSITION_RESOLUTION:
+			myCycleTest.position_resolution = myEdit.cur_Value;
+      saveCycleData();
 			end_edit = true;
 			break;
 		case INDEX_MOVE_TIMEOUT:
@@ -947,6 +954,11 @@ void updateDisp_SetupEdits(uint16_t theData) {
 			lcd.setCursor(13,1); lcd.print("   ");
 			lcd.setCursor(13,1); lcd.print(theData);
 			break;			
+    case INDEX_POSITION_RESOLUTION:
+			if (theData == INVALID_DATA) theData = myCycleTest.position_resolution;
+			lcd.setCursor(8,1); lcd.print("   ");
+			lcd.setCursor(8,1); lcd.print(theData);
+			break;
 		case INDEX_MOVE_TIMEOUT:
 			if (theData == INVALID_DATA) theData = myCycleTest.move_timeout;
 			lcd.setCursor(13,1); lcd.print("   ");
