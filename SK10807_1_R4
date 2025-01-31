@@ -57,7 +57,7 @@ const char display4[] = "Limit Sensor Cfg";
 const char display5[] = "Motor Control   ";
 const char display6[] = "Max Speed: 12rps";
 const char display7[] = "Accel:6789stps/s";
-const char display8[] = "DriverRes: 12345";
+const char display8[] = "DrivRes:12345stp";
 const char display9[] = "Duty Cycle: 234%";
 //						         "0123456789012345"
 const char display10[] = "Lmt Sensors YES ";
@@ -344,7 +344,8 @@ void init_stepper_drive(void) {
 	tmp = myDriveSettings.max_speed * myDriveSettings.driver_resolution;		// calculate the max speed...
 	myStepperDrive.setMaxSpeed((float)tmp);										// max speed is in steps per sec... so this can also be looked at as revs/sec 1600 steps/sec = (1600 steps/sec divided by STEPS_PER_REV) = 8 revs/sec (with STEPS_PER_REV = 200)
 	
-	tmp = myDriveSettings.acceleration;									// calculate the acceleration in terms of steps per sec...
+	 
+  tmp = pow(myDriveSettings.max_speed * myDriveSettings.driver_resolution,2)/(2*myDriveSettings.acceleration);									// calculate the acceleration in terms of steps per sec...
 	myStepperDrive.setRampLen((float)tmp);									// acceleration is also in steps per sec, so if your max speed is 1600 and your acceleration is 800, then it will take 2 secs to get up to full speed
 	//myStepperDrive.setCurrentPosition(0);									// sets the current position to 0
 
@@ -983,8 +984,8 @@ void updateDisp_SetupEdits(uint16_t theData) {
 			break;
 		case INDEX_DRIVER_RESOLUTION:
 			if (theData == INVALID_DATA) theData = myDriveSettings.driver_resolution;
-			lcd.setCursor(11,1); lcd.print("     ");
-			lcd.setCursor(11,1); lcd.print(theData);
+			lcd.setCursor(8,1); lcd.print("     ");
+			lcd.setCursor(8,1); lcd.print(theData);
 			break;
 		case INDEX_USE_LMT_SENSORS:
 			if (theData == INVALID_DATA) theData = (uint16_t)(myCycleTest.limit_sensors);
@@ -1188,6 +1189,7 @@ void disableMotor() {
 
 void setMotorAcceleration() {
 	myDriveSettings.acceleration = inStr.substring(4).toDouble();
+  myDriveSettings.acceleration = pow(myDriveSettings.max_speed,2)/(2*myDriveSettings.acceleration);
 	myStepperDrive.setRampLen((float)myDriveSettings.acceleration);
 	Serial.print("Accel set to "); Serial.println(myDriveSettings.acceleration);
 }
@@ -1205,7 +1207,6 @@ void resetMotorToZero() {
 
 void parseGOTO() {
 	int32_t tmpPos = 0;
-	
 	tmpPos = (int32_t) inStr.substring(4).toInt();
 	moveTo(tmpPos);
 	Serial.print("Going to: "); Serial.println(tmpPos);
@@ -1213,7 +1214,6 @@ void parseGOTO() {
 
 void parseMOVE() {
 	int32_t tmpPos = 0;
-	
 	tmpPos = (int32_t) inStr.substring(4).toInt();
 	move(tmpPos);
 	Serial.print("Incrementing: "); Serial.println(tmpPos);
