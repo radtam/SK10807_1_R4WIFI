@@ -35,7 +35,7 @@
 
 #define DRIVER_RESOLUTION_DEF 200		// steps per revolutions this value needs to correspond to the  switch setting on the DM1182 myStepperDrive drive 12/20
 #define MAX_SPEED_DEF		8		// revolutions per second
-#define ACCELERATION_DEF	1600	// steps per sec^2
+#define ACCELERATION_DEF	8	// revolutions per sec^2
 #define POSITION_RESOLUTION_DEF 50  // 
 
 #define DIR_UP				-1		// "UP" movements are CCW shaft rotations or negative step values
@@ -56,7 +56,7 @@ const char display3[]  = "Cycle Test Cfg  ";
 const char display4[] = "Limit Sensor Cfg";
 const char display5[] = "Motor Control   ";
 const char display6[] = "Max Speed: 12rps";
-const char display7[] = "Accel:6789stps/s";
+const char display7[] = "Accel: 67  rps^2";
 const char display8[] = "DrivRes:12345stp";
 const char display9[] = "Duty Cycle: 234%";
 //						         "0123456789012345"
@@ -341,12 +341,12 @@ void init_stepper_drive(void) {
 
 	//myStepperDrive.setPinsInverted(false);									// Invert the default direction - this was in the code previously - don't think it is needed...
 	
-	tmp = myDriveSettings.max_speed * myDriveSettings.driver_resolution;		// calculate the max speed...
+	tmp = myDriveSettings.max_speed * myDriveSettings.driver_resolution;		// Converting rev/sec to step/sec
 	myStepperDrive.setMaxSpeed((float)tmp);										// max speed is in steps per sec... so this can also be looked at as revs/sec 1600 steps/sec = (1600 steps/sec divided by STEPS_PER_REV) = 8 revs/sec (with STEPS_PER_REV = 200)
 	
 	 
-  tmp = pow(myDriveSettings.max_speed * myDriveSettings.driver_resolution,2)/(2*myDriveSettings.acceleration);									// calculate the acceleration in terms of steps per sec...
-	myStepperDrive.setRampLen((float)tmp);									// acceleration is also in steps per sec, so if your max speed is 1600 and your acceleration is 800, then it will take 2 secs to get up to full speed
+  tmp = pow(myDriveSettings.max_speed * myDriveSettings.driver_resolution,2)/(2*myDriveSettings.acceleration* myDriveSettings.driver_resolution);						// Converting the acceleration in rev per sec^2 to a ramp value in steps
+	myStepperDrive.setRampLen((float)tmp);									// acceleration is set in rev per sec^2, so if your max speed is 8rps and your acceleration is 4rps^2, then it will take 2 secs to get up to full speed
 	//myStepperDrive.setCurrentPosition(0);									// sets the current position to 0
 
 }
@@ -546,9 +546,9 @@ void updateEditVariables(void) {
 			myEdit.cur_Value = myDriveSettings.max_speed;
 			break;
 		case INDEX_ACCEL:
-			myEdit.max_Value = 6400;
-			myEdit.min_Value = 100;
-			myEdit.stepSize = 100;
+			myEdit.max_Value = 32;
+			myEdit.min_Value = 1;
+			myEdit.stepSize = 1;
 			myEdit.xMultipler = 5;
 			myEdit.cur_Value = myDriveSettings.acceleration;
 			break;
@@ -979,8 +979,8 @@ void updateDisp_SetupEdits(uint16_t theData) {
 			break;
 		case INDEX_ACCEL:
 			if (theData == INVALID_DATA) theData = myDriveSettings.acceleration;
-			lcd.setCursor(6,1); lcd.print("    ");
-			lcd.setCursor(6,1); lcd.print(theData);
+			lcd.setCursor(7,1); lcd.print("    ");
+			lcd.setCursor(7,1); lcd.print(theData);
 			break;
 		case INDEX_DRIVER_RESOLUTION:
 			if (theData == INVALID_DATA) theData = myDriveSettings.driver_resolution;
@@ -1189,13 +1189,14 @@ void disableMotor() {
 
 void setMotorAcceleration() {
 	myDriveSettings.acceleration = inStr.substring(4).toDouble();
-  myDriveSettings.acceleration = pow(myDriveSettings.max_speed,2)/(2*myDriveSettings.acceleration);
+  myDriveSettings.acceleration = pow(myDriveSettings.max_speed * myDriveSettings.driver_resolution,2)/(2*myDriveSettings.acceleration * myDriveSettings.driver_resolution);
 	myStepperDrive.setRampLen((float)myDriveSettings.acceleration);
 	Serial.print("Accel set to "); Serial.println(myDriveSettings.acceleration);
 }
 
 void setMotorSpeed() {
 	myDriveSettings.max_speed = inStr.substring(4).toDouble();
+  myDriveSettings.max_speed = myDriveSettings.max_speed * myDriveSettings.driver_resolution;
 	myStepperDrive.setMaxSpeed((float)myDriveSettings.max_speed);
 	Serial.print("Speed set to "); Serial.println(myDriveSettings.max_speed);
 }
